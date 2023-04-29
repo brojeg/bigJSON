@@ -6,12 +6,6 @@ type Recipe struct {
 	Delivery string `json:"delivery"`
 }
 
-type RecordData struct {
-	Recipe      string
-	Delivery    string
-	LocalCounts map[string]int
-}
-
 type Output struct {
 	UniqueRecipeCount       int                   `json:"unique_recipe_count"`
 	CountPerRecipe          []CountPerRecipe      `json:"count_per_recipe"`

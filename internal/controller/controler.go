@@ -1,17 +1,28 @@
 package controller
 
 import (
+	"bigJson/config"
 	"bigJson/internal/model"
-	"fmt"
-	"os"
+	"log"
 	"sort"
-	"strconv"
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 )
 
-func Process(iter *jsoniter.Iterator, postcode, startTime, endTime string, keywords []string) *model.Output {
+type CLIProcess struct {
+	config *config.Application
+	iter   *jsoniter.Iterator
+}
+
+func NewCliProcess(config *config.Application, iter *jsoniter.Iterator) *CLIProcess {
+	var app CLIProcess
+	app.iter = iter
+	app.config = config
+	return &app
+}
+
+func (cli CLIProcess) Process() *model.Output {
 	recipeCounts := make(map[string]int)
 	postcodeCounts := make(map[string]int)
 	var maxPostcode string
@@ -20,11 +31,11 @@ func Process(iter *jsoniter.Iterator, postcode, startTime, endTime string, keywo
 
 	recipesWithKeywords := make(map[string]bool)
 
-	for iter.ReadArray() {
+	for cli.iter.ReadArray() {
 		var record model.Recipe
-		iter.ReadVal(&record)
-		if iter.Error != nil {
-			fmt.Println("Error reading JSON:", iter.Error)
+		cli.iter.ReadVal(&record)
+		if cli.iter.Error != nil {
+			log.Println("Error reading JSON:", cli.iter.Error)
 			return nil
 		}
 
@@ -40,16 +51,16 @@ func Process(iter *jsoniter.Iterator, postcode, startTime, endTime string, keywo
 			maxPostcode = record.Postcode
 		}
 
-		// Count the number of deliveries to postcode 10120 between 10AM and 3PM
-		if record.Postcode == postcode {
+		// Count the number of deliveries to postcode
+		if record.Postcode == cli.config.Postcode {
 			startHour, endHour := parseDeliveryTime(record.Delivery)
-			if startHour >= parseHour(startTime) && endHour <= parseHour(endTime) {
+			if startHour >= cli.config.StartTime && endHour <= cli.config.EndTime {
 				deliveries10120++
 			}
 		}
 
 		// Add recipe names containing any of the specified keywords to the set
-		if containsKeyword(record.Recipe, keywords) {
+		if containsKeyword(record.Recipe, cli.config.KeywordsString) {
 			recipesWithKeywords[record.Recipe] = true
 		}
 	}
@@ -68,8 +79,6 @@ func Process(iter *jsoniter.Iterator, postcode, startTime, endTime string, keywo
 	}
 	sort.Strings(recipesKeywords)
 
-	// Print the recipe names containing any of the specified keywords, in alphabetical order
-
 	output := model.Output{
 		UniqueRecipeCount: len(recipeCounts),
 		BusiestPostcode: model.PostcodeDeliveryCount{
@@ -77,9 +86,9 @@ func Process(iter *jsoniter.Iterator, postcode, startTime, endTime string, keywo
 			DeliveryCount: maxCount,
 		},
 		CountPerPostcodeAndTime: model.PostcodeDeliveryCount{
-			Postcode:      "10120",
-			From:          "11AM",
-			To:            "3PM",
+			Postcode:      cli.config.Postcode,
+			From:          cli.config.StartTimeString,
+			To:            cli.config.EndTimeString,
 			DeliveryCount: deliveries10120,
 		},
 		MatchByName: recipesKeywords,
@@ -92,33 +101,23 @@ func Process(iter *jsoniter.Iterator, postcode, startTime, endTime string, keywo
 		})
 	}
 
-	fileout, _ := os.Create("output.json")
-	defer fileout.Close()
-
-	jsoniter.NewEncoder(fileout).Encode(output)
-
 	return &output
 }
 
 func parseDeliveryTime(delivery string) (startHour, endHour int) {
-	parts := strings.Split(delivery, " ")
-	startHour, _ = strconv.Atoi(parts[1][:len(parts[1])-2])
-	endHour, _ = strconv.Atoi(parts[3][:len(parts[3])-2])
+	parts := strings.Split(delivery, "-")
+	startHour = config.ParseHour(parts[0])
+	endHour = config.ParseHour(parts[1])
 	return startHour, endHour
 }
+
 func containsKeyword(recipe string, keywords []string) bool {
+	lowerCaseRecipe := strings.ToLower(recipe)
 	for _, keyword := range keywords {
-		if strings.Contains(recipe, keyword) {
+		lowerCaseKeyword := strings.ToLower(keyword)
+		if strings.Contains(lowerCaseRecipe, lowerCaseKeyword) {
 			return true
 		}
 	}
 	return false
-}
-
-func parseHour(timeString string) int {
-	hour, _ := strconv.Atoi(timeString[:len(timeString)-2])
-	if strings.HasSuffix(timeString, "PM") && hour != 12 {
-		hour += 12
-	}
-	return hour
 }
