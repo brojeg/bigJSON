@@ -12,7 +12,11 @@ import (
 
 func main() {
 
-	configApp := config.Init()
+	configApp, err := config.Init()
+	if err != nil {
+		log.Println(err)
+		return
+	}
 
 	file, err := os.Open(configApp.FilePath)
 	if err != nil {
@@ -25,7 +29,15 @@ func main() {
 	iter := jsoniter.Parse(jsoniter.ConfigFastest, file, bufferSize)
 
 	app := controller.NewCliProcess(configApp, iter)
-	result := app.Process()
-	fmt.Println(result)
+	result, err := app.Process()
+	if err != nil {
+		log.Println(err)
+	}
+	e, err := jsoniter.Marshal(result)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(string(e))
 
 }

@@ -3,6 +3,7 @@ package controller
 import (
 	"bigJson/config"
 	"bigJson/internal/model"
+	"bigJson/pkg"
 	"log"
 	"sort"
 	"strings"
@@ -22,7 +23,7 @@ func NewCliProcess(config *config.Application, iter *jsoniter.Iterator) *CLIProc
 	return &app
 }
 
-func (cli CLIProcess) Process() *model.Output {
+func (cli CLIProcess) Process() (*model.Output, error) {
 	recipeCounts := make(map[string]int)
 	postcodeCounts := make(map[string]int)
 	var maxPostcode string
@@ -36,7 +37,7 @@ func (cli CLIProcess) Process() *model.Output {
 		cli.iter.ReadVal(&record)
 		if cli.iter.Error != nil {
 			log.Println("Error reading JSON:", cli.iter.Error)
-			return nil
+			return nil, cli.iter.Error
 		}
 
 		// Increment the count for this recipe name
@@ -54,7 +55,12 @@ func (cli CLIProcess) Process() *model.Output {
 		// Count the number of deliveries to postcode
 		if record.Postcode == cli.config.Postcode {
 			startHour, endHour := parseDeliveryTime(record.Delivery)
-			if startHour >= cli.config.StartTime && endHour <= cli.config.EndTime {
+			if endHour < startHour { // delivery spans over midnight
+				if (startHour <= cli.config.StartTime() && cli.config.StartTime() < 24) || // start before midnight
+					(0 <= cli.config.EndTime() && cli.config.EndTime() <= endHour) { // end after midnight
+					deliveries10120++
+				}
+			} else if startHour <= cli.config.StartTime() && endHour >= cli.config.EndTime() {
 				deliveries10120++
 			}
 		}
@@ -101,13 +107,13 @@ func (cli CLIProcess) Process() *model.Output {
 		})
 	}
 
-	return &output
+	return &output, nil
 }
 
 func parseDeliveryTime(delivery string) (startHour, endHour int) {
 	parts := strings.Split(delivery, "-")
-	startHour = config.ParseHour(parts[0])
-	endHour = config.ParseHour(parts[1])
+	startHour = pkg.ParseHour(parts[0])
+	endHour = pkg.ParseHour(parts[1])
 	return startHour, endHour
 }
 

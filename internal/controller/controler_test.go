@@ -55,8 +55,6 @@ func TestCLIProcess_Process(t *testing.T) {
 		StartTimeString: "10AM",
 		EndTimeString:   "3PM",
 		KeywordsString:  []string{"Potato", "Veggie"},
-		StartTime:       config.ParseHour("10AM"),
-		EndTime:         config.ParseHour("3PM"),
 	}
 
 	// Create a new jsoniter.Iterator with mockData
@@ -66,7 +64,10 @@ func TestCLIProcess_Process(t *testing.T) {
 	cli := NewCliProcess(config, iter)
 
 	// Call the Process method
-	output := cli.Process()
+	output, err := cli.Process()
+	if err != nil {
+		t.Error(err)
+	}
 
 	// Compare the output to the expected output
 	if !reflect.DeepEqual(output, expected) {

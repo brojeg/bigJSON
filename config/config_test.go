@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bigJson/pkg"
 	"reflect"
 	"testing"
 )
@@ -19,7 +20,7 @@ func TestParseHour(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ParseHour(tt.timeString); got != tt.expected {
+			if got := pkg.ParseHour(tt.timeString); got != tt.expected {
 				t.Errorf("ParseHour() = %v, expected %v", got, tt.expected)
 			}
 		})
@@ -75,52 +76,52 @@ func TestValidateKeywords(t *testing.T) {
 
 func TestValidateTimeWindow(t *testing.T) {
 	tests := []struct {
-		name        string
-		timeWindow  string
-		expectError bool
+		name       string
+		timeWindow string
+		wantErr    bool
 	}{
 		{
-			name:        "Valid time window",
-			timeWindow:  "10AM-1PM",
-			expectError: false,
+			name:       "Valid time window",
+			timeWindow: "10AM-1PM",
+			wantErr:    false,
 		},
 		{
-			name:        "Invalid time window - missing dash",
-			timeWindow:  "10AM1PM",
-			expectError: true,
+			name:       "Invalid time window - missing dash",
+			timeWindow: "10AM1PM",
+			wantErr:    true,
 		},
 		{
-			name:        "Invalid time window - missing AM/PM in start time",
-			timeWindow:  "10-1PM",
-			expectError: true,
+			name:       "Invalid time window - missing AM/PM in start time",
+			timeWindow: "10-1PM",
+			wantErr:    true,
 		},
 		{
-			name:        "Invalid time window - missing AM/PM in end time",
-			timeWindow:  "10AM-1",
-			expectError: true,
+			name:       "Invalid time window - missing AM/PM in end time",
+			timeWindow: "10AM-1",
+			wantErr:    true,
 		},
 		{
-			name:        "Invalid time window - missing AM/PM in both times",
-			timeWindow:  "10-1",
-			expectError: true,
+			name:       "Invalid time window - missing AM/PM in both times",
+			timeWindow: "10-1",
+			wantErr:    true,
 		},
 		{
-			name:        "Invalid start time format",
-			timeWindow:  "10PM-1PM",
-			expectError: true,
+			name:       "Overnight deliverty test",
+			timeWindow: "10PM-1PM",
+			wantErr:    false,
 		},
 		{
-			name:        "Invalid end time format",
-			timeWindow:  "10AM-13PM",
-			expectError: true,
+			name:       "Invalid end time format",
+			timeWindow: "10AM-13PM",
+			wantErr:    true,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := validateTimeWindow(test.timeWindow)
-			if (err != nil) != test.expectError {
-				t.Errorf("validateTimeWindow() error = %v, expectError %v", err, test.expectError)
+			if (err != nil) != test.wantErr {
+				t.Errorf("validateTimeWindow() error = %v, wantErr %v", err, test.wantErr)
 			}
 		})
 	}
